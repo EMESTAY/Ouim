@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, AlertCircle } from 'lucide-react';
 import { useDataStore } from '../stores/useDataStore';
+import { Card } from './ui/Card';
 
 export const ImportScreen: React.FC = () => {
   const { importData, isLoading, error } = useDataStore();
@@ -35,21 +36,46 @@ export const ImportScreen: React.FC = () => {
   };
 
   const processFile = async (file: File) => {
-    const text = await file.text();
-    await importData(text);
+    try {
+      console.log('Reading file:', file.name, 'size:', file.size);
+      const text = await file.text();
+      console.log('File read successfully, length:', text.length);
+      const success = await importData(text);
+      if (success) {
+        console.log('Import successful!');
+      } else {
+        console.warn('Import returned false, check store error.');
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('Error reading file:', err.message);
+      } else {
+        console.error('Error reading file:', err);
+      }
+      // erreur store maj
+    }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white p-4">
-      <div className="max-w-md w-full space-y-8">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4 relative overflow-hidden">
+      {/* ambiance fond */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-gym-blue/20 rounded-full blur-[100px] opacity-20 animate-pulse pointer-events-none" />
+      <div
+        className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-gym-purple/20 rounded-full blur-[100px] opacity-20 animate-pulse pointer-events-none"
+        style={{ animationDelay: '2s' }}
+      />
+
+      <Card className="max-w-md w-full space-y-8 p-8 border-white/10 shadow-2xl shadow-black/50 z-10">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Gym Tracker Online</h1>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-gym-blue to-gym-purple bg-clip-text text-transparent mb-2">
+            Gym Tracker Online
+          </h1>
           <p className="text-neutral-400">Manage your workout data from your browser.</p>
         </div>
 
         <div
-          className={`relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg transition-colors cursor-pointer
-            ${dragActive ? 'border-blue-500 bg-blue-500/10' : 'border-neutral-700 bg-neutral-800 hover:bg-neutral-800/80'}
+          className={`relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-xl transition-all duration-300 cursor-pointer group
+            ${dragActive ? 'border-gym-blue bg-gym-blue/10 scale-105' : 'border-neutral-700 bg-black/20 hover:bg-black/40 hover:border-neutral-500'}
           `}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -85,7 +111,7 @@ export const ImportScreen: React.FC = () => {
         )}
 
         {isLoading && <p className="text-center text-neutral-400 animate-pulse">Processing...</p>}
-      </div>
+      </Card>
     </div>
   );
 };

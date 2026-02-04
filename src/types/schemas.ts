@@ -129,48 +129,151 @@ export const UserProfileSchema = z.object({
     .optional(),
 });
 
-export const BodyMeasurementSchema = z.object({
+export const BodyMeasurementSchema = z.preprocess(
+  (val: unknown) => {
+    if (typeof val === 'object' && val !== null) {
+      const v = val as Record<string, unknown>;
+      return {
+        ...v,
+        bodyFat: v.bodyFat ?? v.body_fat,
+        muscleMass: v.muscleMass ?? v.muscle_mass,
+        waterPercentage: v.waterPercentage ?? v.water_percentage,
+        visceralFat: v.visceralFat ?? v.visceral_fat,
+        boneMass: v.boneMass ?? v.bone_mass,
+        metabolicAge: v.metabolicAge ?? v.metabolic_age,
+        proteinPercentage: v.proteinPercentage ?? v.protein_percentage,
+      };
+    }
+    return val;
+  },
+  z.object({
+    id: z.coerce.string(),
+    date: z.number(),
+    weight: z.number(), // kg
+    height: z.number().nullable().optional(), // Cm (sometimes logged)
+    bodyFat: z.number().nullable().optional(), // %
+    muscleMass: z.number().nullable().optional(), // kg or % based on user pref, usually kg from scale
+    waterPercentage: z.number().nullable().optional(), // %
+    visceralFat: z.number().nullable().optional(), // Rating
+    boneMass: z.number().nullable().optional(), // kg
+    bmr: z.number().nullable().optional(), // kcal
+    metabolicAge: z.number().nullable().optional(), // years
+    proteinPercentage: z.number().nullable().optional(), // %
+  })
+);
+
+// ============================================
+// EXERCISE SCHEMA (for raw DB export)
+// ============================================
+
+export const ExerciseSchema = z.object({
   id: z.string(),
-  date: z.number(),
-  weight: z.number(), // kg
-  height: z.number().optional(), // Cm (sometimes logged)
-  bodyFat: z.number().optional(), // %
-  muscleMass: z.number().optional(), // kg or % based on user pref, usually kg from scale
-  waterPercentage: z.number().optional(), // %
-  visceralFat: z.number().optional(), // Rating
-  boneMass: z.number().optional(), // kg
-  bmr: z.number().optional(), // kcal
-  metabolicAge: z.number().optional(), // years
-  proteinPercentage: z.number().optional(), // %
+  name: z.string(),
+  muscle_group: MuscleGroupSchema.optional().nullable(),
+  equipment: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  created_at: z.number().optional().nullable(),
+});
+
+// ============================================
+// SET SCHEMA (for raw DB export)
+// ============================================
+
+export const WorkoutSetSchema = z.object({
+  id: z.string(),
+  workout_id: z.string(),
+  exercise_id: z.string(),
+  set_number: z.number(),
+  reps: z.number(),
+  weight: z.number(),
+  is_warmup: z.union([z.boolean(), z.number()]).optional().nullable(),
+  rpe: z.number().optional().nullable(),
+  timestamp: z.number().optional().nullable(),
 });
 
 // ============================================
 // BACKUP SCHEMA
 // ============================================
 
-export const BackupDataSchema = z.object({
-  version: z.string(),
-  exportDate: z.number(),
-  sessions: z.record(SessionIdSchema, SessionRoutineSchema),
-  workoutHistory: z.array(WorkoutLogSchema),
-  userProfile: UserProfileSchema.optional(),
-  bodyMeasurements: z.array(BodyMeasurementSchema).optional(),
-});
+export const BackupDataSchema = z.preprocess(
+  (val: unknown) => {
+    if (typeof val === 'object' && val !== null) {
+      const v = val as Record<string, unknown>;
+      // Normalize field names
+      const normalized: Record<string, unknown> = {
+        ...v,
+        exportDate: v.exportDate ?? v.date,
+        workoutHistory: v.workoutHistory ?? v.workouts ?? [],
+        exercises: v.exercises ?? [],
+        sets: v.sets ?? [],
+      };
+
+      // Parse sessions from raw DB format if needed
+      if (Array.isArray(normalized.sessions)) {
+        const parsedSessions: Record<string, unknown> = {};
+        for (const sess of normalized.sessions) {
+          // Raw DB format has 'data' as JSON string
+          if (typeof sess.data === 'string') {
+            try {
+              const parsed = JSON.parse(sess.data);
+              parsedSessions[parsed.id || sess.id] = parsed;
+            } catch {
+              // If parsing fails, skip
+            }
+          } else if (sess.id && sess.name && sess.sections) {
+            // Already parsed format
+            parsedSessions[sess.id] = sess;
+          }
+        }
+        normalized.sessions = parsedSessions;
+      }
+
+      return normalized;
+    }
+    return val;
+  },
+  z.object({
+    version: z.coerce.string(),
+    exportDate: z.number().optional(),
+    exercises: z.array(ExerciseSchema).optional().default([]),
+    sessions: z
+      .union([
+        z.record(SessionIdSchema, SessionRoutineSchema),
+        z
+          .array(SessionRoutineSchema)
+          .transform((arr) =>
+            arr.reduce((acc, session) => ({ ...acc, [session.id]: session }), {})
+          ),
+        z.array(z.unknown()).transform(() => ({})), // Handle empty generic arrays
+      ])
+      .optional()
+      .default({}),
+    workoutHistory: z.array(WorkoutLogSchema).optional().default([]),
+    sets: z.array(WorkoutSetSchema).optional().default([]),
+    userProfile: UserProfileSchema.optional(),
+    bodyMeasurements: z.array(BodyMeasurementSchema).optional(),
+  })
+);
 
 // ============================================
 // PROGRAM EXPORT SCHEMA
 // ============================================
 
 export const ProgramExportSchema = z.object({
-  version: z.string(),
-  exportDate: z.number(),
+  version: z.coerce.string(),
+  exportDate: z.number().optional(),
   type: z.literal('program_export'),
-  sessions: z.record(SessionIdSchema, SessionRoutineSchema),
+  sessions: z.union([
+    z.record(SessionIdSchema, SessionRoutineSchema),
+    z
+      .array(SessionRoutineSchema)
+      .transform((arr) => arr.reduce((acc, session) => ({ ...acc, [session.id]: session }), {})),
+  ]),
 });
 
 export const SessionExportSchema = z.object({
-  version: z.string(),
-  exportDate: z.number(),
+  version: z.coerce.string(),
+  exportDate: z.number().optional(),
   type: z.literal('session_export'),
   sourceId: SessionIdSchema.optional(),
   session: SessionRoutineSchema,

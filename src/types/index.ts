@@ -23,6 +23,8 @@ export type ProgramExportData = z.infer<typeof S.ProgramExportSchema>;
 export type SessionExportData = z.infer<typeof S.SessionExportSchema>;
 export type UserProfile = z.infer<typeof S.UserProfileSchema>;
 export type BodyMeasurement = z.infer<typeof S.BodyMeasurementSchema>;
+export type Exercise = z.infer<typeof S.ExerciseSchema>;
+export type WorkoutSet = z.infer<typeof S.WorkoutSetSchema>;
 
 // ============================================
 // UTILITIES

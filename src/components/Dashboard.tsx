@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDataStore } from '../stores/useDataStore';
-import { LogOut } from 'lucide-react';
+import { Logs } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const { data, reset } = useDataStore();
@@ -9,7 +9,6 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
-      {/* Header */}
       <header className="border-b border-neutral-800 bg-neutral-900/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -24,13 +23,12 @@ export const Dashboard: React.FC = () => {
           <button
             onClick={reset}
             className="flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-md transition-colors">
-            <LogOut size={16} />
+            <Logs size={16} />
             Back to Import
           </button>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         <h2 className="text-2xl font-bold mb-6">Welcome Back</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
